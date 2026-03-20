@@ -335,6 +335,18 @@
       "location": "Bay of Fundy, ME",
       "field_notes": "Herb. North Atlantic Right Whale #1250. A 40 year veteran of the bay of Fundy, seeing one of these rare creatures in the wild will alter you perception for the rest of your life.",
       "id": 28
+    },
+    {
+      "unique_id": "P2145507",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/P2145507.webp",
+      "title": "P2145507",
+      "gear": "OM Digital Solutions OM-1, OM 100-400mm F5.0-6.3",
+      "technical_specs": "100mm, 80ISO, f/5.0, 1/2000",
+      "print_info": "",
+      "location": "",
+      "field_notes": "",
+      "id": 29
     }
   ]
 }
