@@ -155,6 +155,19 @@
       "field_notes": "A stormy day at the most photographed lighthouse in the world. The winds were blowing strong, and the ocean was crashing, yet the lighthouse still shines.",
       "sort_order": null,
       "id": 12
+    },
+    {
+      "unique_id": "Blood_Moon-5",
+      "category": "cityscape",
+      "filename": "images-optimized/cityscape/Blood_Moon-5.webp",
+      "title": "Blood Moon 5",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, M.40-150mm F2.8 + MC-14",
+      "technical_specs": "87mm, 200ISO, f/11.0, 5",
+      "print_info": "",
+      "location": "",
+      "field_notes": "",
+      "sort_order": null,
+      "id": 13
     }
   ]
 }
