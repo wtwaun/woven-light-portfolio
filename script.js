@@ -178,9 +178,11 @@ async function initGallery() {
     if (!gallery) return;
 
     const manifest = await loadGalleryData();
-    const allImages = manifest?.images?.length
-        ? manifest.images.map(manifestToImage)
-        : GALLERY_IMAGES_FALLBACK;
+    // Use manifest whenever it loaded (even if images is empty) — avoids fallback after a hard reset
+    const allImages =
+        manifest && Array.isArray(manifest.images)
+            ? manifest.images.map(manifestToImage)
+            : GALLERY_IMAGES_FALLBACK;
 
     const currentCategory = getCurrentCategory();
 
