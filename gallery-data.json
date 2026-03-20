@@ -99,6 +99,17 @@
       "print_info": "Canon Pro Luster",
       "location": "The Parklands of Floyds Fork, KY",
       "field_notes": "Taken by sheer luck, this Belted Kingfisher passed through the hole in the trees for a brief moment."
+    },
+    {
+      "id": 10,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-10.webp",
+      "title": "IMG_0617",
+      "gear": "OM Digital Solutions OM-3, OLYMPUS M.75mm F1.8",
+      "technical_specs": "75mm, 200ISO, f/8.0, 1/160",
+      "print_info": "",
+      "location": "",
+      "field_notes": ""
     }
   ]
 }
