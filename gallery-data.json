@@ -44,6 +44,17 @@
       "print_info": "",
       "location": "",
       "field_notes": ""
+    },
+    {
+      "id": 5,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-5.webp",
+      "title": "Lizard",
+      "gear": "OM Digital Solutions OM-1, OM 100-400mm F5.0-6.3",
+      "technical_specs": "385mm, 200ISO, f/6.3, 1/800",
+      "print_info": "Canon Pro Luster",
+      "location": "Atacama Desert, Chile",
+      "field_notes": "Seen on the salt flats, the texture of the lizard’s skin begged for a photo."
     }
   ]
 }
