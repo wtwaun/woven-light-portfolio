@@ -2397,6 +2397,17 @@
       "print_info": "Canon Pro Luster",
       "location": "Chilean Coast",
       "field_notes": "The Oystercatchers were out this day all around us, with this particular one playing by the crashing waves."
+    },
+    {
+      "id": 219,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-112.webp",
+      "title": "Friend",
+      "gear": "OM Digital Solutions OM-1, OM 150-400mm F4.5 TC",
+      "technical_specs": "500mm, 200ISO, f/8.0, 1/800",
+      "print_info": "Canon Pro Luster",
+      "location": "Acadia National Park, ME",
+      "field_notes": "As the kayakers moved through the bay, this seal peaked up to check on them."
     }
   ]
 }
