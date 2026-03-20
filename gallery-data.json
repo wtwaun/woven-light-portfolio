@@ -263,6 +263,18 @@
       "location": "Atacama Desert, Chile",
       "field_notes": "Seen on the salt flats, the texture of the lizard’s skin begged for a photo.",
       "id": 22
+    },
+    {
+      "unique_id": "PA170012",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/PA170012.webp",
+      "title": "PA170012",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, OLYMPUS M.75mm F1.8",
+      "technical_specs": "75mm, 1000ISO, f/8.0, 1/60",
+      "print_info": "",
+      "location": "",
+      "field_notes": "",
+      "id": 23
     }
   ]
 }
