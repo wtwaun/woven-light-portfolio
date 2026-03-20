@@ -1,0 +1,18 @@
+{
+  "name": "woven-light-portfolio",
+  "private": true,
+  "scripts": {
+    "optimize-images": "node optimize-images.js",
+    "generate-gallery-data": "node generate-gallery-data.js",
+    "watch-publish": "node watcher.js",
+    "serve": "npx --yes serve -l 3000"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.5"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.8",
+    "chokidar": "^5.0.0",
+    "exifreader": "^4.37.0"
+  }
+}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WILD WAUN - Wildlife Photography">
+    <title>Wildlife | WILD WAUN Photography</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-category="wildlife">
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-logo-container">
+            <img src="logowhite.png" alt="WILD WAUN" class="splash-logo" loading="eager">
+        </div>
+    </div>
+
+    <div class="main-content" id="mainContent">
+    <header class="header">
+        <div class="container">
+            <div class="logo-container">
+                <a href="index.html"><img src="logowhite.png" alt="WILD WAUN" class="logo" loading="eager"></a>
+            </div>
+            <nav class="nav">
+                <div class="nav-desktop">
+                    <a href="wildlife.html" class="nav-link active">Wildlife</a>
+                    <a href="landscape.html" class="nav-link">Landscape</a>
+                    <a href="abstract.html" class="nav-link">Abstract</a>
+                    <a href="cityscape.html" class="nav-link">Cityscape</a>
+                    <a href="plants.html" class="nav-link">Plants</a>
+                    <a href="stars.html" class="nav-link">Stars</a>
+                </div>
+                <div class="nav-mobile">
+                    <button type="button" class="nav-menu-trigger" id="navMenuTrigger" aria-label="Open galleries menu">GALLERIES</button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="gallery" id="gallery">
+                <!-- Images will be dynamically loaded here -->
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 WILD WAUN. All rights reserved.</p>
+        </div>
+    </footer>
+    </div>
+
+    <div class="nav-overlay" id="navOverlay" aria-hidden="true">
+        <div class="nav-overlay-backdrop"></div>
+        <button type="button" class="nav-overlay-close" id="navOverlayClose" aria-label="Close menu">&times;</button>
+        <nav class="nav-overlay-content">
+            <ul class="nav-overlay-list">
+                <li><a href="index.html" class="nav-overlay-link">Home</a></li>
+                <li><a href="wildlife.html" class="nav-overlay-link">Wildlife</a></li>
+                <li><a href="landscape.html" class="nav-overlay-link">Landscape</a></li>
+                <li><a href="abstract.html" class="nav-overlay-link">Abstract</a></li>
+                <li><a href="cityscape.html" class="nav-overlay-link">Cityscape</a></li>
+                <li><a href="plants.html" class="nav-overlay-link">Plants</a></li>
+                <li><a href="stars.html" class="nav-overlay-link">Stars</a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.6.0/color-thief.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
