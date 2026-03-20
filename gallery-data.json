@@ -558,6 +558,19 @@
       "field_notes": "",
       "sort_order": null,
       "id": 43
+    },
+    {
+      "unique_id": "P9255867-4",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/P9255867-4.webp",
+      "title": "Friend",
+      "gear": "OM Digital Solutions OM-1, OM 150-400mm F4.5 TC",
+      "technical_specs": "500mm, 200ISO, f/8.0, 1/800",
+      "print_info": "Canon Pro Luster",
+      "location": "Acadia National Park, ME",
+      "field_notes": "As the kayakers moved through the bay, this seal peaked up to check on them.",
+      "sort_order": null,
+      "id": 44
     }
   ]
 }
