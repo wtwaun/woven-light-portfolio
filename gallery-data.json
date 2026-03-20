@@ -987,6 +987,19 @@
       "field_notes": "A stormy day at the most photographed lighthouse in the world. The winds were blowing strong, and the ocean was crashing, yet the lighthouse still shines.",
       "sort_order": null,
       "id": 76
+    },
+    {
+      "unique_id": "Wildwaun-13",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildwaun-13.webp",
+      "title": "Mountain Bluebird",
+      "gear": "OM Digital Solutions OM-1MarkII, OM 150-400mm F4.5 TC",
+      "technical_specs": "500mm, 1000ISO, f/5.6, 1/2500",
+      "print_info": "Canon Pro Luster",
+      "location": "Great Sand Dunes National Park,",
+      "field_notes": "The electric blue plumage of the Western Bluebird is always striking to see, especially in contrast to the neutrals of the dunes.",
+      "sort_order": null,
+      "id": 77
     }
   ]
 }
