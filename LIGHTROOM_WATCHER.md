@@ -11,6 +11,10 @@ This project includes **`watcher.js`**, which watches a folder for new JPEGs fro
 
 You’ll see either **`[watcher] Updated existing photo: [id]`** or **`[watcher] Added new photo: [id]`** after each publish.
 
+### Hard reset `gallery-data.json`
+
+**Stop** `npm run watch-publish` first — otherwise it will rewrite the file as soon as you save. Then edit `gallery-data.json` (e.g. `{"images": []}` or a single hero row), commit, and push. The homepage hero image path is **locked in `script.js`** (`HOME_HERO`); JSON only supplies metadata and the wildlife grid when you include that row.
+
 ## 1. One-time setup
 
 1. **Create the publish folder** on your Mac (or point `CONFIG.watchDir` somewhere else):
