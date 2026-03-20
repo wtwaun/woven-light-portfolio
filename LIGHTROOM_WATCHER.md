@@ -8,6 +8,7 @@ This project includes **`watcher.js`**, which watches a folder for new JPEGs fro
 - **WebP on disk** — Always **`images-optimized/{category}/{unique_id}.webp`**. Re-publishing the same photo **overwrites** that file.
 - **Updates** — If `unique_id` already exists in `gallery-data.json`, the watcher **updates** title, category, location, field notes, gear, technical specs, print info, and filename (e.g. after a category change) instead of adding a duplicate row.
 - **Startup cleanup** — Once per run, the script dedupes `gallery-data.json` by `unique_id` and by `filename`, keeping the entry with the **highest numeric `id`**.
+- **Category** — Reads **IPTC Category**, **Supplemental Category**, and **XMP** fields whose names include `category` (e.g. Lightroom **Content Category**). Matching is **case-insensitive**, **trimmed**, and **fuzzy** to one of: Wildlife, Landscape, Abstract, Cityscape, Plants, Stars. Success logs **`[watcher] Category detected: …`**; unknown values log **`[watcher] ERROR: No matching category for … Found '…' instead.`** (then defaults to **wildlife**). **Keywords** are still used as a fallback if no category field matches.
 
 You’ll see either **`[watcher] Updated existing photo: [id]`** or **`[watcher] Added new photo: [id]`** after each publish.
 

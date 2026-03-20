@@ -81,6 +81,16 @@ const ALLOWED_CATEGORIES = [
   'stars',
 ];
 
+/** Title-case labels for console feedback (folder slugs → Lightroom-style names). */
+const CATEGORY_DISPLAY = {
+  wildlife: 'Wildlife',
+  landscape: 'Landscape',
+  abstract: 'Abstract',
+  cityscape: 'Cityscape',
+  plants: 'Plants',
+  stars: 'Stars',
+};
+
 const processing = new Set();
 
 // -----------------------------------------------------------------------------
@@ -171,62 +181,158 @@ function titleFromXmp(xmp) {
 }
 
 /**
- * Case-insensitive: IPTC Category field first; if empty / no match, Keywords; else wildlife.
+ * Trim, collapse whitespace, strip odd Unicode spaces (case preserved for error messages).
  */
-function normalizeCategory(rawCategory, keywordsText, filenameForLog) {
-  const tryMatch = (s) => {
-    if (s == null || s === '') return '';
-    const t = s
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ');
-    if (!t) return '';
-    if (ALLOWED_CATEGORIES.includes(t)) return t;
-    for (const c of ALLOWED_CATEGORIES) {
-      if (t === c) return c;
-      try {
-        const re = new RegExp(`\\b${c}\\b`, 'i');
-        if (re.test(s.toString())) return c;
-      } catch (_) {
-        if (t.includes(c)) return c;
+function cleanCategoryInput(raw) {
+  if (raw == null || raw === '') return '';
+  let s = raw.toString();
+  s = s.replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ');
+  return s.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Lowercase + collapsed spaces for matching only.
+ */
+function normalizedCategoryKey(raw) {
+  return cleanCategoryInput(raw).toLowerCase();
+}
+
+/**
+ * Collect strings from IPTC Category, Supplemental Category, and XMP fields Lightroom uses
+ * for “Content Category” / category-like tags (excluding location fields).
+ */
+function extractCategoryCandidates(iptc, xmp) {
+  const out = [];
+  const push = (v) => {
+    const c = cleanCategoryInput(v);
+    if (c) out.push(c);
+  };
+
+  push(pickDesc(iptc, 'Category'));
+  const supplemental = pickDesc(iptc, 'Supplemental Category');
+  if (supplemental) {
+    supplemental
+      .split(/[,;]/)
+      .map((s) => cleanCategoryInput(s))
+      .filter(Boolean)
+      .forEach((p) => out.push(p));
+  }
+
+  if (xmp && typeof xmp === 'object') {
+    for (const key of Object.keys(xmp)) {
+      const lk = key.toLowerCase().replace(/[{}]/g, '');
+      if (lk.includes('location')) continue;
+      if (lk.includes('category')) {
+        const v = pickDesc(xmp, key);
+        if (v) {
+          v.split(/[,;]/)
+            .map((s) => cleanCategoryInput(s))
+            .filter(Boolean)
+            .forEach((p) => out.push(p));
+        }
       }
     }
-    return '';
-  };
-
-  const tryKeywords = (text) => {
-    const parts = (text || '')
-      .split(/[,;]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    for (const p of parts) {
-      const c = tryMatch(p);
-      if (c) return c;
-    }
-    return '';
-  };
-
-  // 1) IPTC Category field first (Lightroom "Category")
-  const fromCategory = tryMatch(rawCategory);
-  if (fromCategory) return fromCategory;
-
-  // 2) Keywords only if Category did not yield a recognized slug
-  const fromKeywords = tryKeywords(keywordsText);
-  if (fromKeywords) return fromKeywords;
-
-  const categoryEmpty = !String(rawCategory ?? '').trim();
-  const keywordsEmpty = !String(keywordsText ?? '').trim();
-
-  if (categoryEmpty && keywordsEmpty) {
-    console.warn(
-      `[watcher] No category found for ${filenameForLog}, defaulting to wildlife.`
-    );
-  } else {
-    console.warn(
-      `[watcher] No recognized category for ${filenameForLog} (IPTC Category / Keywords must match: ${ALLOWED_CATEGORIES.join(', ')}). Defaulting to wildlife.`
-    );
   }
+
+  return out;
+}
+
+/**
+ * Map a single human-entered fragment to a folder slug, or ''.
+ * Case-insensitive; trims; fuzzy word boundaries and light aliases.
+ */
+function mapFragmentToCategorySlug(fragment) {
+  const key = normalizedCategoryKey(fragment);
+  if (!key) return '';
+
+  if (ALLOWED_CATEGORIES.includes(key)) return key;
+
+  const stripWrappers = key
+    .replace(/^[\s"'“”‘’[\]()]+|[\s"'“”‘’[\])]+$/g, '')
+    .trim();
+  if (ALLOWED_CATEGORIES.includes(stripWrappers)) return stripWrappers;
+
+  const spaced = stripWrappers.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (ALLOWED_CATEGORIES.includes(spaced)) return spaced;
+
+  const ALIASES = {
+    'wild life': 'wildlife',
+    'wild-life': 'wildlife',
+    'city scape': 'cityscape',
+    'city-scape': 'cityscape',
+    'cityscapes': 'cityscape',
+    'landscapes': 'landscape',
+    'abstracts': 'abstract',
+    plant: 'plants',
+    'plant life': 'plants',
+    star: 'stars',
+    stars: 'stars',
+    astro: 'stars',
+    astrophotography: 'stars',
+  };
+  if (ALIASES[spaced]) return ALIASES[spaced];
+  if (ALIASES[stripWrappers]) return ALIASES[stripWrappers];
+
+  for (const c of ALLOWED_CATEGORIES) {
+    if (spaced === `${c}s` && c !== 'plants' && c !== 'stars') return c;
+  }
+  if (spaced === 'plant' || spaced === 'plants') return 'plants';
+  if (spaced === 'star' || spaced === 'stars') return 'stars';
+
+  const hay = spaced;
+  for (const c of ALLOWED_CATEGORIES) {
+    const esc = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(^|\\s|[\\/_-])${esc}($|\\s|[\\/_-])`, 'i');
+    if (re.test(hay)) return c;
+  }
+
+  for (const c of ALLOWED_CATEGORIES) {
+    if (hay === c || hay.startsWith(`${c} `) || hay.endsWith(` ${c}`)) return c;
+  }
+
+  return '';
+}
+
+function tryKeywordsForSlug(keywordsText) {
+  const parts = (keywordsText || '')
+    .split(/[,;]/)
+    .map((s) => cleanCategoryInput(s))
+    .filter(Boolean);
+  for (const p of parts) {
+    const slug = mapFragmentToCategorySlug(p);
+    if (slug) return slug;
+  }
+  return '';
+}
+
+/**
+ * Resolve category slug from IPTC + XMP + Keywords. Logs success or ERROR with raw value seen.
+ */
+function normalizeCategory(iptc, xmp, keywordsText, filenameForLog) {
+  const candidates = extractCategoryCandidates(iptc, xmp);
+
+  for (const cand of candidates) {
+    const slug = mapFragmentToCategorySlug(cand);
+    if (slug) {
+      console.log(`[watcher] Category detected: ${CATEGORY_DISPLAY[slug]}.`);
+      return slug;
+    }
+  }
+
+  const fromKeywords = tryKeywordsForSlug(keywordsText);
+  if (fromKeywords) {
+    console.log(`[watcher] Category detected: ${CATEGORY_DISPLAY[fromKeywords]}.`);
+    return fromKeywords;
+  }
+
+  const seenCategory = candidates.length ? candidates.join(' ; ') : '';
+  const seenKeywords = cleanCategoryInput(keywordsText);
+  const foundVal =
+    seenCategory || seenKeywords || '(empty)';
+
+  console.error(
+    `[watcher] ERROR: No matching category for ${filenameForLog}. Found '${foundVal}' instead.`
+  );
   return 'wildlife';
 }
 
@@ -569,9 +675,8 @@ async function processJpeg(filePath) {
     const field_notes = pickDesc(iptc, 'Caption/Abstract');
     const location = pickDesc(iptc, 'Sub-location');
     const print_info = pickDesc(iptc, 'Headline');
-    const iptcCategory = pickDesc(iptc, 'Category');
     const keywords = pickDesc(iptc, 'Keywords');
-    const category = normalizeCategory(iptcCategory, keywords, base);
+    const category = normalizeCategory(iptc, xmp, keywords, base);
 
     const technical_specs = buildTechnicalSpecs(exif);
     const gear = buildGear(exif);
