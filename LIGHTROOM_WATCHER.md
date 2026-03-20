@@ -4,7 +4,7 @@ This project includes **`watcher.js`**, which watches **category subfolders** un
 
 ### Bulletproof database behavior
 
-- **Folder = category** — Export into **`WILDWAUN_PUBLISH/Wildlife/`**, **`…/Landscape/`**, **`…/Abstract/`**, **`…/Cityscape/`**, **`…/Plants/`**, or **`…/Stars/`** (folder name is **case-insensitive**; fuzzy aliases still map). **IPTC / XMP category tags are ignored** for routing. JPEGs **directly** in the publish root are **skipped** with a warning.
+- **Folder = category (recursive)** — The watcher watches the **entire** publish tree (nested **Published Folder** paths, etc.). It walks **up** from the JPEG’s **parent folder** toward the publish root and uses the **first** folder whose name matches **Wildlife**, **Landscape**, **Abstract**, **Cityscape**, **Plants**, or **Stars** (case-insensitive; fuzzy aliases still map). Example: **`…/Wildlife/Lightroom Export/001-foo.jpg`** → **Wildlife**. **IPTC / XMP category tags are ignored** for routing. JPEGs **directly** in the publish root (no subfolder) get **`category: "uncategorized"`** and WebPs go to **`images-optimized/uncategorized/`**. **`_processed/`** at the publish root is **ignored** for watching and is **never** treated as a category (ingest moves completed JPEGs there so they don’t re-trigger).
 - **`unique_id`** — If the filename uses **Custom Order** (see below), the part **after** the leading number is used (e.g. `001-P8150904.jpg` → `P8150904`). Otherwise: metadata **Original Filename** (EXIF / XMP), or the **export basename** if those are missing.
 - **`sort_order`** — Names like **`001-P8150904.jpg`** set **`sort_order`** from the leading number (per category) and **re-sort** `gallery-data.json` after each change. Entries **without** that prefix sort **after** all numbered items on the site.
 - **WebP on disk** — **`images-optimized/{category}/{unique_id}.webp`**. Re-publishing **overwrites** that file.
@@ -26,7 +26,7 @@ You’ll still see **`[watcher] Updated existing photo: [id]`** or **`[watcher] 
 
    `~/Desktop/WILDWAUN_PUBLISH/Wildlife/`, `…/Landscape/`, `…/Abstract/`, `…/Cityscape/`, `…/Plants/`, `…/Stars/`
 
-   Lightroom (or Finder) should place exports **inside** the correct category folder, not in the publish root.
+   You can nest Lightroom **Published Folders** under those folders (e.g. **`Wildlife/My Publish/…`**). Avoid putting new JPEGs **directly** in the publish root unless you want **`uncategorized`**.
 
 2. **Open `watcher.js`** in this repo and check the top **`CONFIG`** block:
 

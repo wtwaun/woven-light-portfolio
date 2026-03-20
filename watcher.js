@@ -83,6 +83,7 @@ const ALLOWED_CATEGORIES = [
   'cityscape',
   'plants',
   'stars',
+  'uncategorized',
 ];
 
 /** Title-case labels for console feedback (folder slugs → Lightroom-style names). */
@@ -93,12 +94,17 @@ const CATEGORY_DISPLAY = {
   cityscape: 'Cityscape',
   plants: 'Plants',
   stars: 'Stars',
+  uncategorized: 'Uncategorized',
 };
 
 const processing = new Set();
 
 /** Absolute paths we moved to _processed — ignore matching `unlink` (not a user deletion). */
 const ignoredUnlinks = new Set();
+
+function pathKey(p) {
+  return path.normalize(path.resolve(p));
+}
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -313,7 +319,7 @@ function tryKeywordsForSlug(keywordsText) {
 }
 
 /**
- * Legacy: IPTC/XMP category resolution. Unused — publish **subfolder** name sets category (`categoryFromPublishRelative`).
+ * Legacy: IPTC/XMP category resolution. Unused — category comes from folder path (`categoryFromWatchFilePath`).
  * Kept for reference or future opt-in.
  */
 function normalizeCategory(iptc, xmp, keywordsText, filenameForLog) {
@@ -446,28 +452,62 @@ function sortGalleryDataImages(data) {
 }
 
 /**
- * First folder under the publish root must be a known category (Wildlife/foo.jpg).
- * Returns null for files sitting directly in the publish root or under _processed/.
+ * Resolve category from directory chain: walk from the file's **immediate parent** up toward
+ * the watch root; first folder whose name maps to Wildlife / Landscape / … wins.
+ * Supports nested publish paths (e.g. Wildlife/Lightroom Published/foo.jpg, or
+ * Published Folders/Wildlife/foo.jpg).
+ *
+ * @returns null only under `_processed/` or outside watch root; otherwise `{ slug, display, folderName }`
+ *          with slug `uncategorized` for JPEGs sitting **directly** in the publish root or when
+ *          no known category appears in the path.
  */
-function categoryFromPublishRelative(relPath, logLabel) {
-  const parts = String(relPath || '')
-    .split(/[/\\]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (parts.length < 2) return null;
-  if (parts[0] === CONFIG.processedSubdir) return null;
-  const folderRaw = parts[0];
-  const slug = mapFragmentToCategorySlug(folderRaw);
-  if (!slug) {
-    console.warn(
-      `[watcher] Unknown category subfolder "${folderRaw}" (${logLabel}) — use one of: ${ALLOWED_CATEGORIES.join(', ')}`
-    );
+function categoryFromWatchFilePath(watchResolved, absFilePath, logLabel) {
+  const absWatch = path.resolve(watchResolved);
+  const absFile = path.normalize(path.resolve(absFilePath));
+
+  const rel = path.relative(absWatch, absFile);
+  if (rel.startsWith('..') || rel.split(/[/\\]/).includes('..')) return null;
+  if (rel.startsWith(CONFIG.processedSubdir + path.sep) || rel === CONFIG.processedSubdir) {
     return null;
   }
+
+  let dir = path.dirname(absFile);
+  const chain = [];
+  while (dir && dir !== absWatch && dir.startsWith(absWatch + path.sep)) {
+    const base = path.basename(dir);
+    if (base === CONFIG.processedSubdir) return null;
+    chain.push(base);
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  if (chain.length === 0) {
+    return {
+      slug: 'uncategorized',
+      display: CATEGORY_DISPLAY.uncategorized,
+      folderName: '',
+    };
+  }
+
+  for (const folderRaw of chain) {
+    const slug = mapFragmentToCategorySlug(folderRaw);
+    if (slug) {
+      return {
+        slug,
+        display: CATEGORY_DISPLAY[slug],
+        folderName: folderRaw,
+      };
+    }
+  }
+
+  console.warn(
+    `[watcher] No known gallery category in path for ${logLabel} (folders: ${chain.join(' → ')}). Using Uncategorized.`
+  );
   return {
-    slug,
-    display: CATEGORY_DISPLAY[slug],
-    folderName: folderRaw,
+    slug: 'uncategorized',
+    display: CATEGORY_DISPLAY.uncategorized,
+    folderName: chain[0],
   };
 }
 
@@ -781,22 +821,22 @@ async function processJpeg(filePath) {
   if (!lower.endsWith('.jpg') && !lower.endsWith('.jpeg')) return;
 
   const watchResolved = path.resolve(CONFIG.watchDir);
-  const abs = path.resolve(filePath);
+  const abs = pathKey(filePath);
   const rel = path.relative(watchResolved, abs);
   if (rel.startsWith('..') || rel.split(/[/\\]/).includes('..')) return;
   if (rel.startsWith(CONFIG.processedSubdir + path.sep) || rel === CONFIG.processedSubdir) {
     return;
   }
 
-  const catInfo = categoryFromPublishRelative(rel, base);
+  const catInfo = categoryFromWatchFilePath(watchResolved, abs, base);
   if (!catInfo) {
-    console.warn(`[watcher] Ignoring JPEG outside a category subfolder: ${rel}`);
     return;
   }
   const category = catInfo.slug;
 
-  if (processing.has(filePath)) return;
-  processing.add(filePath);
+  const procKey = abs;
+  if (processing.has(procKey)) return;
+  processing.add(procKey);
 
   try {
     // 1) Settle + stable size: Lightroom must finish writing and release the file
@@ -894,11 +934,11 @@ async function processJpeg(filePath) {
     const processedDir = path.resolve(CONFIG.watchDir, CONFIG.processedSubdir);
     fs.mkdirSync(processedDir, { recursive: true });
     const destJpg = path.join(processedDir, `${unique_id}-${Date.now()}${path.extname(base)}`);
-    ignoredUnlinks.add(abs);
+    ignoredUnlinks.add(procKey);
     try {
       moveToProcessed(filePath, destJpg);
     } catch (moveErr) {
-      ignoredUnlinks.delete(abs);
+      ignoredUnlinks.delete(procKey);
       throw moveErr;
     }
     console.log(`[watcher]   moved export to _processed/${path.basename(destJpg)}`);
@@ -907,7 +947,7 @@ async function processJpeg(filePath) {
   } catch (err) {
     console.error('[watcher] Error processing', filePath, err);
   } finally {
-    processing.delete(filePath);
+    processing.delete(procKey);
   }
 }
 
@@ -916,7 +956,7 @@ async function handleJpegRemoved(filePath) {
   const lower = base.toLowerCase();
   if (!lower.endsWith('.jpg') && !lower.endsWith('.jpeg')) return;
 
-  const abs = path.resolve(filePath);
+  const abs = pathKey(filePath);
   if (ignoredUnlinks.has(abs)) {
     ignoredUnlinks.delete(abs);
     return;
@@ -926,7 +966,7 @@ async function handleJpegRemoved(filePath) {
   const rel = path.relative(watchResolved, abs);
   if (rel.startsWith('..') || rel.split(/[/\\]/).includes('..')) return;
 
-  const catInfo = categoryFromPublishRelative(rel, base);
+  const catInfo = categoryFromWatchFilePath(watchResolved, abs, base);
   if (!catInfo) return;
 
   const { unique_id } = uniqueIdFromExportBasename(base);
@@ -961,10 +1001,12 @@ function main() {
   dedupeGalleryDataOnStartup();
 
   const gitRoot = getGitRoot();
-  console.log('[watcher] Watching:', path.resolve(CONFIG.watchDir));
+  console.log('[watcher] Watching (recursive):', path.resolve(CONFIG.watchDir));
+  const galleryCats = ALLOWED_CATEGORIES.filter((s) => s !== 'uncategorized');
   console.log(
-    '[watcher] Category subfolders:',
-    ALLOWED_CATEGORIES.map((s) => CATEGORY_DISPLAY[s]).join(', ')
+    '[watcher] Category names (any depth under publish root):',
+    galleryCats.map((s) => CATEGORY_DISPLAY[s]).join(', ') +
+      ' · root or unknown folders → Uncategorized'
   );
   console.log('[watcher] Project root (gallery):', CONFIG.projectRoot);
   console.log('[watcher] Git root:', gitRoot || '(none — run inside a cloned repo for Netlify auto-deploy)');
@@ -975,12 +1017,16 @@ function main() {
   const processedAbs = path.resolve(CONFIG.watchDir, CONFIG.processedSubdir);
   const watcher = chokidar.watch(path.resolve(CONFIG.watchDir), {
     ignoreInitial: true,
+    /** Follow Lightroom “Published Folder” aliases / symlinks */
+    followSymlinks: true,
+    ignorePermissionErrors: true,
+    /** Omit depth = watch all nested subfolders (Wildlife/…, Landscape/…, etc.) */
     awaitWriteFinish: {
       stabilityThreshold: 2000,
       pollInterval: 200,
     },
     ignored: (p) => {
-      const abs = path.resolve(p);
+      const abs = pathKey(p);
       return abs === processedAbs || abs.startsWith(processedAbs + path.sep);
     },
   });
