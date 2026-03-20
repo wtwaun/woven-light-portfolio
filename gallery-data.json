@@ -121,6 +121,17 @@
       "print_info": "",
       "location": "",
       "field_notes": ""
+    },
+    {
+      "id": 12,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-4.webp",
+      "title": "Edge of Ascent",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, M.100-400mm F5.0-6.3 + MC-20",
+      "technical_specs": "800mm, 640ISO, f/14.0, 1/800",
+      "print_info": "Canon Pro Luster",
+      "location": "Falls of the Ohio, IN",
+      "field_notes": "As the Egret departs, it feels like it is falling. Although it does briefly descend, this is all done in order for it to take to the sky."
     }
   ]
 }
