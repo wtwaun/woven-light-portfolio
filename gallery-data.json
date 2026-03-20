@@ -844,6 +844,19 @@
       "field_notes": "",
       "sort_order": null,
       "id": 65
+    },
+    {
+      "unique_id": "Wildwaun-2",
+      "category": "abstract",
+      "filename": "images-optimized/abstract/Wildwaun-2.webp",
+      "title": "Wildwaun 2",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, OLYMPUS M.17mm F1.8",
+      "technical_specs": "17mm, 400ISO, f/9.0, 1/1600",
+      "print_info": "",
+      "location": "",
+      "field_notes": "",
+      "sort_order": null,
+      "id": 66
     }
   ]
 }
