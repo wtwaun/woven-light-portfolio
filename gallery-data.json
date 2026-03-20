@@ -88,6 +88,17 @@
       "print_info": "Canon Pro Luster",
       "location": "Falls of the Ohio, IN",
       "field_notes": "The bright colors of the Baltimore Oriole is always such a delight. The perfect contrast from the orange of the feathers to the blue sky is perfect."
+    },
+    {
+      "id": 9,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-10.webp",
+      "title": "Window",
+      "gear": "OM Digital Solutions OM-1MarkII, OM 150-400mm F4.5 TC",
+      "technical_specs": "250mm, 1600ISO, f/6.3, 1/3200",
+      "print_info": "Canon Pro Luster",
+      "location": "The Parklands of Floyds Fork, KY",
+      "field_notes": "Taken by sheer luck, this Belted Kingfisher passed through the hole in the trees for a brief moment."
     }
   ]
 }
