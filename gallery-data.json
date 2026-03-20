@@ -51,6 +51,19 @@
       "field_notes": "Herb. North Atlantic Right Whale #1250. A 40 year veteran of the bay of Fundy, seeing one of these rare creatures in the wild will alter you perception for the rest of your life.",
       "sort_order": null,
       "id": 4
+    },
+    {
+      "unique_id": "P2071281-Enhanced-NR-3",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/P2071281-Enhanced-NR-3.webp",
+      "title": "Lizard",
+      "gear": "OM Digital Solutions OM-1, OM 100-400mm F5.0-6.3",
+      "technical_specs": "385mm, 200ISO, f/6.3, 1/800",
+      "print_info": "Canon Pro Luster",
+      "location": "Atacama Desert, Chile",
+      "field_notes": "Seen on the salt flats, the texture of the lizard’s skin begged for a photo.",
+      "sort_order": null,
+      "id": 5
     }
   ]
 }
