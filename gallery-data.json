@@ -935,6 +935,19 @@
       "field_notes": "The dark, the light, the sand, the wind, the solo hiker.",
       "sort_order": null,
       "id": 72
+    },
+    {
+      "unique_id": "Wildwaun-11",
+      "category": "landscape",
+      "filename": "images-optimized/landscape/Wildwaun-11.webp",
+      "title": "Valle de la Luna",
+      "gear": "OM Digital Solutions OM-1, OLYMPUS M.17mm F1.8",
+      "technical_specs": "17mm, 200ISO, f/1.8, 1/8000",
+      "print_info": "",
+      "location": "",
+      "field_notes": "Valley of the Moon. The name speaks for itself. We were ushered out shortly after this was taken as thunderstorms quickly moved into the area.",
+      "sort_order": null,
+      "id": 73
     }
   ]
 }
