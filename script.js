@@ -109,6 +109,7 @@ function manifestToImage(entry) {
         print_info: entry.print_info || '',
         location: entry.location || '',
         field_notes: entry.field_notes || '',
+        unique_id: entry.unique_id || '',
     };
 }
 

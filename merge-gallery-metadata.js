@@ -106,10 +106,15 @@ for (const img of data.images) {
   if (img.category === 'landscape' && num === 4 && seen.has(key)) continue;
   seen.add(key);
 
+  const stem =
+    img.unique_id ||
+    path.basename(img.filename || '', path.extname(img.filename || ''));
+
   out.push({
     id: id++,
     category: img.category,
     filename: img.filename,
+    unique_id: stem,
     // Preserve existing title / gear / print_info exactly as in gallery-data.json
     title: img.title,
     gear: img.gear ?? '',

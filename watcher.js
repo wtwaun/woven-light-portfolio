@@ -254,46 +254,171 @@ function buildGear(exif) {
   return [body, lens].filter(Boolean).join(', ');
 }
 
-function nextWebpBasename(category) {
-  const cap = category.charAt(0).toUpperCase() + category.slice(1);
-  const outDir = path.join(CONFIG.projectRoot, 'images-optimized', category);
-  let max = 0;
-  if (fs.existsSync(outDir)) {
-    const re = new RegExp(`^${cap}-(\\d+)\\.webp$`, 'i');
-    for (const f of fs.readdirSync(outDir)) {
-      const m = f.match(re);
-      if (m) max = Math.max(max, parseInt(m[1], 10));
+/**
+ * Original Filename from metadata (Lightroom / camera). Falls back to export basename.
+ */
+function extractOriginalFilename(tags, exportBasenameNoExt) {
+  const exif = tags.exif || {};
+  const xmp = tags.xmp || {};
+
+  const tryVal = (v) => {
+    const s = (v || '').toString().trim();
+    return s ? s.replace(/^.*[/\\]/, '').trim() : '';
+  };
+
+  const candidates = [
+    tryVal(pickDesc(exif, 'OriginalRawFileName')),
+    tryVal(pickDesc(exif, 'RawFile')),
+  ];
+
+  if (xmp && typeof xmp === 'object') {
+    for (const key of Object.keys(xmp)) {
+      const kn = key.toLowerCase().replace(/[{}]/g, '');
+      if (
+        (kn.includes('original') && kn.includes('file')) ||
+        kn.includes('originalfilename') ||
+        kn.includes('sourcefilename') ||
+        kn.endsWith('originalfilename')
+      ) {
+        const v = tryVal(pickDesc(xmp, key));
+        if (v) candidates.push(v);
+      }
     }
   }
-  const dataPath = path.join(CONFIG.projectRoot, 'gallery-data.json');
-  if (fs.existsSync(dataPath)) {
-    try {
-      const { images } = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-      const re = new RegExp(`images-optimized/${category}/${cap}-(\\d+)\\.webp`, 'i');
-      for (const img of images || []) {
-        const m = (img.filename || '').match(re);
-        if (m) max = Math.max(max, parseInt(m[1], 10));
-      }
-    } catch (_) {}
+
+  for (const c of candidates) {
+    if (c) return c;
   }
-  return `${cap}-${max + 1}.webp`;
+
+  return (exportBasenameNoExt || 'photo').trim();
 }
 
-function nextImageId(dataPath) {
-  const { images } = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  let max = 0;
-  for (const img of images || []) {
-    if (typeof img.id === 'number') max = Math.max(max, img.id);
-  }
-  return max + 1;
+/** Sanitized stem used as unique_id and WebP basename (e.g. P953782). */
+function slugUniqueIdFromOriginalName(originalRef) {
+  let base = path.basename(String(originalRef).trim());
+  base = base.replace(/\.(jpe?g|jpeg|tiff?|tif|png|webp|cr2|cr3|nef|arw|dng|raf|orf|rw2|heic)$/i, '');
+  base = base.replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (!base) base = 'photo';
+  return base;
 }
 
-function appendGalleryEntry(entry) {
-  const dataPath = path.join(CONFIG.projectRoot, 'gallery-data.json');
-  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  if (!Array.isArray(data.images)) data.images = [];
-  data.images.push(entry);
+function saveGalleryData(dataPath, data) {
   fs.writeFileSync(dataPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+}
+
+/**
+ * One-time cleanup on startup: assign unique_id from filename if missing; drop duplicate
+ * unique_id or duplicate filename (keep highest numeric id).
+ */
+function dedupeGalleryDataOnStartup() {
+  const dataPath = path.join(CONFIG.projectRoot, 'gallery-data.json');
+  if (!fs.existsSync(dataPath)) {
+    console.log('[watcher] No gallery-data.json — skip dedupe cleanup.');
+    return;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  } catch (e) {
+    console.warn('[watcher] Cleanup: invalid gallery-data.json:', e.message);
+    return;
+  }
+  if (!Array.isArray(data.images)) return;
+
+  let mutated = false;
+  for (const img of data.images) {
+    if (!img.unique_id && img.filename) {
+      img.unique_id = path.basename(img.filename, path.extname(img.filename));
+      mutated = true;
+    }
+  }
+
+  const before = data.images.length;
+  const sorted = [...data.images].sort((a, b) => (b.id || 0) - (a.id || 0));
+  const seenUid = new Set();
+  const seenPath = new Set();
+  const kept = [];
+
+  for (const img of sorted) {
+    const uid = String(img.unique_id || path.basename(img.filename || '', '.webp')).toLowerCase();
+    const fp = (img.filename || '').toLowerCase();
+    if (!uid) {
+      kept.push(img);
+      continue;
+    }
+    if (seenUid.has(uid) || (fp && seenPath.has(fp))) {
+      continue;
+    }
+    seenUid.add(uid);
+    if (fp) seenPath.add(fp);
+    kept.push(img);
+  }
+
+  kept.sort((a, b) => (a.id || 0) - (b.id || 0));
+
+  if (kept.length !== before) {
+    data.images = kept;
+    mutated = true;
+    console.log(
+      `[watcher] Cleanup: removed ${before - kept.length} duplicate gallery entries (same unique_id or filename).`
+    );
+  }
+
+  if (mutated) {
+    saveGalleryData(dataPath, data);
+  }
+}
+
+/**
+ * Insert or update by unique_id. WebP path: images-optimized/{category}/{unique_id}.webp
+ * Overwrites existing WebP; removes old WebP if category/filename changed.
+ */
+function upsertGalleryEntry(newEntry) {
+  const dataPath = path.join(CONFIG.projectRoot, 'gallery-data.json');
+  let data;
+  if (fs.existsSync(dataPath)) {
+    data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  } else {
+    data = { images: [] };
+  }
+  if (!Array.isArray(data.images)) data.images = [];
+
+  const uidNorm = String(newEntry.unique_id).toLowerCase();
+
+  const idx = data.images.findIndex((img) => {
+    if (img.unique_id && String(img.unique_id).toLowerCase() === uidNorm) return true;
+    const stem = path.basename(img.filename || '', '.webp').toLowerCase();
+    return stem === uidNorm;
+  });
+
+  if (idx >= 0) {
+    const old = data.images[idx];
+    const oldRel = old.filename;
+    const newRel = newEntry.filename;
+    if (oldRel && oldRel !== newRel) {
+      const oldAbs = path.join(CONFIG.projectRoot, oldRel);
+      if (fs.existsSync(oldAbs)) {
+        try {
+          fs.unlinkSync(oldAbs);
+        } catch (e) {
+          console.warn('[watcher] Could not remove old WebP:', oldRel, e.message);
+        }
+      }
+    }
+    newEntry.id = old.id;
+    data.images[idx] = newEntry;
+    saveGalleryData(dataPath, data);
+    console.log(`[watcher] Updated existing photo: ${newEntry.id}`);
+    return { updated: true, entry: newEntry };
+  }
+
+  const maxId = data.images.reduce((m, i) => Math.max(m, typeof i.id === 'number' ? i.id : 0), 0);
+  newEntry.id = maxId + 1;
+  data.images.push(newEntry);
+  saveGalleryData(dataPath, data);
+  console.log(`[watcher] Added new photo: ${newEntry.id}`);
+  return { updated: false, entry: newEntry };
 }
 
 function runGitSteps() {
@@ -432,10 +557,14 @@ async function processJpeg(filePath) {
     const exif = tags.exif || {};
     const xmp = tags.xmp || {};
 
+    const exportStem = path.basename(base, path.extname(base));
+    const originalFromMeta = extractOriginalFilename(tags, exportStem);
+    const unique_id = slugUniqueIdFromOriginalName(originalFromMeta);
+
     const title =
       pickDesc(iptc, 'Object Name') ||
       titleFromXmp(xmp) ||
-      path.basename(base, path.extname(base)).replace(/-/g, ' ');
+      exportStem.replace(/-/g, ' ');
 
     const field_notes = pickDesc(iptc, 'Caption/Abstract');
     const location = pickDesc(iptc, 'Sub-location');
@@ -447,7 +576,7 @@ async function processJpeg(filePath) {
     const technical_specs = buildTechnicalSpecs(exif);
     const gear = buildGear(exif);
 
-    const webpName = nextWebpBasename(category);
+    const webpName = `${unique_id}.webp`;
     const outDir = path.join(CONFIG.projectRoot, 'images-optimized', category);
     fs.mkdirSync(outDir, { recursive: true });
     const outPath = path.join(outDir, webpName);
@@ -468,12 +597,10 @@ async function processJpeg(filePath) {
     }
     await chain.webp({ quality: CONFIG.webpQuality }).toFile(outPath);
 
-    const dataPath = path.join(CONFIG.projectRoot, 'gallery-data.json');
-    const id = nextImageId(dataPath);
     const relFilename = `images-optimized/${category}/${webpName}`;
 
-    appendGalleryEntry({
-      id,
+    upsertGalleryEntry({
+      unique_id,
       category,
       filename: relFilename,
       title,
@@ -487,15 +614,13 @@ async function processJpeg(filePath) {
     // 3) _processed: create every time, then move (copy+unlink fallback)
     const processedDir = path.resolve(CONFIG.watchDir, CONFIG.processedSubdir);
     fs.mkdirSync(processedDir, { recursive: true });
-    const destJpg = path.join(
-      processedDir,
-      `${path.parse(webpName).name}-${Date.now()}${path.extname(base)}`
-    );
+    const destJpg = path.join(processedDir, `${unique_id}-${Date.now()}${path.extname(base)}`);
     moveToProcessed(filePath, destJpg);
 
-    console.log(`[watcher] Published: ${relFilename}`);
-    console.log(`[watcher]   title="${title}" category=${category}`);
-    console.log(`[watcher]   moved original to ${path.basename(destJpg)}`);
+    console.log(
+      `[watcher] WebP: ${relFilename} · unique_id=${unique_id} · title="${title}" · category=${category}`
+    );
+    console.log(`[watcher]   moved export to _processed/${path.basename(destJpg)}`);
 
     runGitSteps();
   } catch (err) {
@@ -520,6 +645,8 @@ function main() {
 
   const processedDir = path.resolve(CONFIG.watchDir, CONFIG.processedSubdir);
   fs.mkdirSync(processedDir, { recursive: true });
+
+  dedupeGalleryDataOnStartup();
 
   const gitRoot = getGitRoot();
   console.log('[watcher] Watching:', path.resolve(CONFIG.watchDir));

@@ -1,6 +1,15 @@
 # Lightroom publish watcher (plug-and-play)
 
-This project includes **`watcher.js`**, which watches a folder for new JPEGs from Lightroom, converts them to WebP, appends an entry to **`gallery-data.json`**, and (optionally) runs **`git add` / `commit` / `push`**.
+This project includes **`watcher.js`**, which watches a folder for new JPEGs from Lightroom, converts them to WebP, **upserts** entries in **`gallery-data.json`** (by **`unique_id`** / original filename anchor), and (optionally) runs **`git add` / `commit` / `push`**.
+
+### Bulletproof database behavior
+
+- **`unique_id`** — Taken from metadata **Original Filename** (EXIF `OriginalRawFileName`, `RawFile`, or matching XMP fields). If missing, the **export filename** (e.g. `P953782.jpg` → `P953782`) is used.
+- **WebP on disk** — Always **`images-optimized/{category}/{unique_id}.webp`**. Re-publishing the same photo **overwrites** that file.
+- **Updates** — If `unique_id` already exists in `gallery-data.json`, the watcher **updates** title, category, location, field notes, gear, technical specs, print info, and filename (e.g. after a category change) instead of adding a duplicate row.
+- **Startup cleanup** — Once per run, the script dedupes `gallery-data.json` by `unique_id` and by `filename`, keeping the entry with the **highest numeric `id`**.
+
+You’ll see either **`[watcher] Updated existing photo: [id]`** or **`[watcher] Added new photo: [id]`** after each publish.
 
 ## 1. One-time setup
 

@@ -75,6 +75,7 @@ function scanAndBuild() {
         id: id++,
         category,
         filename,
+        unique_id: prev?.unique_id ?? baseName,
         title: prev?.title ?? filenameToTitle(baseName),
         gear: prev?.gear ?? '',
         print_info: prev?.print_info ?? '',
