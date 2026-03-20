@@ -311,6 +311,18 @@
       "location": "Acadia National Park, ME",
       "field_notes": "As the kayakers moved through the bay, this seal peaked up to check on them.",
       "id": 26
+    },
+    {
+      "unique_id": "P2145449",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/P2145449.webp",
+      "title": "Out of the Surf",
+      "gear": "OM Digital Solutions OM-1, OM 100-400mm F5.0-6.3",
+      "technical_specs": "400mm, 400ISO, f/6.3, 1/2500",
+      "print_info": "Canon Pro Luster",
+      "location": "Chilean Coast",
+      "field_notes": "The Oystercatchers were out this day all around us, with this particular one playing by the crashing waves.",
+      "id": 27
     }
   ]
 }
