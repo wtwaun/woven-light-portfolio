@@ -115,6 +115,10 @@ for (const img of data.images) {
     category: img.category,
     filename: img.filename,
     unique_id: stem,
+    sort_order:
+      typeof img.sort_order === 'number' && Number.isFinite(img.sort_order)
+        ? img.sort_order
+        : null,
     // Preserve existing title / gear / print_info exactly as in gallery-data.json
     title: img.title,
     gear: img.gear ?? '',
@@ -125,6 +129,22 @@ for (const img of data.images) {
     field_notes: img.field_notes ?? '',
   });
 }
+
+out.sort((a, b) => {
+  const ao =
+    typeof a.sort_order === 'number' && Number.isFinite(a.sort_order)
+      ? a.sort_order
+      : Infinity;
+  const bo =
+    typeof b.sort_order === 'number' && Number.isFinite(b.sort_order)
+      ? b.sort_order
+      : Infinity;
+  if (ao !== bo) return ao - bo;
+  return (a.id || 0) - (b.id || 0);
+});
+out.forEach((img, i) => {
+  img.id = i + 1;
+});
 
 fs.writeFileSync(DATA_PATH, JSON.stringify({ images: out }, null, 2), 'utf8');
 console.log('Merged', out.length, 'entries into gallery-data.json');

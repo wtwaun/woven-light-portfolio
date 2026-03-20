@@ -109,6 +109,9 @@ async function loadGalleryData() {
 }
 
 function manifestToImage(entry) {
+    const so = entry.sort_order;
+    const sort_order =
+        typeof so === 'number' && Number.isFinite(so) ? so : null;
     return {
         src: entry.filename,
         category: entry.category,
@@ -121,7 +124,27 @@ function manifestToImage(entry) {
         location: entry.location || '',
         field_notes: entry.field_notes || '',
         unique_id: entry.unique_id || '',
+        sort_order,
     };
+}
+
+/** Lightroom export order: lower sort_order first; missing sort_order last (stable by manifest index). */
+function sortImagesByGalleryOrder(images) {
+    return images
+        .map((img, index) => ({ img, index }))
+        .sort((a, b) => {
+            const ao =
+                typeof a.img.sort_order === 'number' && Number.isFinite(a.img.sort_order)
+                    ? a.img.sort_order
+                    : Infinity;
+            const bo =
+                typeof b.img.sort_order === 'number' && Number.isFinite(b.img.sort_order)
+                    ? b.img.sort_order
+                    : Infinity;
+            if (ao !== bo) return ao - bo;
+            return a.index - b.index;
+        })
+        .map(({ img }) => img);
 }
 
 // Master metadata update for View 2: data is slaved to the current photo index
@@ -192,7 +215,7 @@ async function initGallery() {
     // Use manifest whenever it loaded (even if images is empty) — avoids fallback after a hard reset
     const allImages =
         manifest && Array.isArray(manifest.images)
-            ? manifest.images.map(manifestToImage)
+            ? sortImagesByGalleryOrder(manifest.images.map(manifestToImage))
             : GALLERY_IMAGES_FALLBACK;
 
     const currentCategory = getCurrentCategory();

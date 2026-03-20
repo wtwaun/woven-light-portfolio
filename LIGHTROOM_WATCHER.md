@@ -1,16 +1,20 @@
 # Lightroom publish watcher (plug-and-play)
 
-This project includes **`watcher.js`**, which watches a folder for new JPEGs from Lightroom, converts them to WebP, **upserts** entries in **`gallery-data.json`** (by **`unique_id`** / original filename anchor), and (optionally) runs **`git add` / `commit` / `push`**.
+This project includes **`watcher.js`**, which watches **category subfolders** under your publish root, converts new JPEGs to WebP, **upserts** **`gallery-data.json`** (by **`unique_id`**), **removes** rows and WebPs when you delete a publish file, and (optionally) runs **`git add` / `commit` / `push`**.
 
 ### Bulletproof database behavior
 
-- **`unique_id`** — Taken from metadata **Original Filename** (EXIF `OriginalRawFileName`, `RawFile`, or matching XMP fields). If missing, the **export filename** (e.g. `P953782.jpg` → `P953782`) is used.
-- **WebP on disk** — Always **`images-optimized/{category}/{unique_id}.webp`**. Re-publishing the same photo **overwrites** that file.
-- **Updates** — If `unique_id` already exists in `gallery-data.json`, the watcher **updates** title, category, location, field notes, gear, technical specs, print info, and filename (e.g. after a category change) instead of adding a duplicate row.
-- **Startup cleanup** — Once per run, the script dedupes `gallery-data.json` by `unique_id` and by `filename`, keeping the entry with the **highest numeric `id`**.
-- **Category** — Reads **IPTC Category**, **Supplemental Category**, and **XMP** fields whose names include `category` (e.g. Lightroom **Content Category**). Matching is **case-insensitive**, **trimmed**, and **fuzzy** to one of: Wildlife, Landscape, Abstract, Cityscape, Plants, Stars. Success logs **`[watcher] Category detected: …`**; unknown values log **`[watcher] ERROR: No matching category for … Found '…' instead.`** (then defaults to **wildlife**). **Keywords** are still used as a fallback if no category field matches.
+- **Folder = category** — Export into **`WILDWAUN_PUBLISH/Wildlife/`**, **`…/Landscape/`**, **`…/Abstract/`**, **`…/Cityscape/`**, **`…/Plants/`**, or **`…/Stars/`** (folder name is **case-insensitive**; fuzzy aliases still map). **IPTC / XMP category tags are ignored** for routing. JPEGs **directly** in the publish root are **skipped** with a warning.
+- **`unique_id`** — If the filename uses **Custom Order** (see below), the part **after** the leading number is used (e.g. `001-P8150904.jpg` → `P8150904`). Otherwise: metadata **Original Filename** (EXIF / XMP), or the **export basename** if those are missing.
+- **`sort_order`** — Names like **`001-P8150904.jpg`** set **`sort_order`** from the leading number (per category) and **re-sort** `gallery-data.json` after each change. Entries **without** that prefix sort **after** all numbered items on the site.
+- **WebP on disk** — **`images-optimized/{category}/{unique_id}.webp`**. Re-publishing **overwrites** that file.
+- **Updates** — Same **`unique_id`** → update metadata and path (e.g. after moving the file to another category folder).
+- **Mirror deletions** — Deleting a JPEG from a category subfolder removes the **`gallery-data.json`** row (**`unique_id` + `category`**) and the **`.webp`**, then runs git with **`gitRemoveCommitMessage`** when **`autoGitPush`** is on. Ingest moves to **`_processed`** do **not** trigger this (handled internally).
+- **Startup cleanup** — Dedupes by **`unique_id`** / **`filename`**, then sorts by **`sort_order`**.
 
-You’ll see either **`[watcher] Updated existing photo: [id]`** or **`[watcher] Added new photo: [id]`** after each publish.
+**Terminal heartbeats:** **`[watcher] New file in Wildlife: 001-P8150904.jpg (# 1)`** (use **`# —`** without a sequence prefix). **`[watcher] File removed from Wildlife: 001-P8150904.jpg. Syncing...`** when a publish file is deleted.
+
+You’ll still see **`[watcher] Updated existing photo: [id]`** or **`[watcher] Added new photo: [id]`** from the upsert step.
 
 ### Hard reset `gallery-data.json`
 
@@ -18,9 +22,11 @@ You’ll see either **`[watcher] Updated existing photo: [id]`** or **`[watcher]
 
 ## 1. One-time setup
 
-1. **Create the publish folder** on your Mac (or point `CONFIG.watchDir` somewhere else):
+1. **Create the publish folder** and **one subfolder per gallery** on your Mac (or point `CONFIG.watchDir` elsewhere):
 
-   `~/Desktop/WILDWAUN_PUBLISH`
+   `~/Desktop/WILDWAUN_PUBLISH/Wildlife/`, `…/Landscape/`, `…/Abstract/`, `…/Cityscape/`, `…/Plants/`, `…/Stars/`
+
+   Lightroom (or Finder) should place exports **inside** the correct category folder, not in the publish root.
 
 2. **Open `watcher.js`** in this repo and check the top **`CONFIG`** block:
 
@@ -28,6 +34,7 @@ You’ll see either **`[watcher] Updated existing photo: [id]`** or **`[watcher]
    - `projectRoot` — leave as `__dirname` (the portfolio folder).
    - `autoGitPush` — `true` runs git after each successful photo; set to `false` if you don’t want that.
    - `processedSubdir` — `_processed` (processed JPEGs are moved here so they aren’t picked up twice).
+   - `gitRemoveCommitMessage` — commit message when a photo is **deleted** from a category folder and the gallery syncs.
 
 3. **Install dependencies** (from the portfolio folder):
 

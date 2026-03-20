@@ -1,9 +1,10 @@
 /**
  * WILDWAUN Lightroom Publish Watcher
  * ------------------------------------
- * Watches a folder for new JPEGs, reads metadata with ExifReader, writes WebP
- * into images-optimized/[category]/, appends to gallery-data.json, optionally
- * runs git add/commit/push.
+ * Watches category subfolders under the publish root (e.g. Wildlife/*.jpg),
+ * reads metadata with ExifReader, writes WebP into images-optimized/[category]/,
+ * updates gallery-data.json (sort_order from 001-name.jpg), mirrors file deletions,
+ * optionally runs git add/commit/push.
  *
  * 1) Edit CONFIG below (watch folder path, toggles).
  * 2) From this project folder: npm run watch-publish
@@ -36,8 +37,11 @@ const CONFIG = {
   /** If true: git add / commit / push after each successful publish (uses real git root). */
   autoGitPush: true,
 
-  /** Git commit message */
+  /** Git commit message (new / updated photos) */
   gitCommitMessage: 'New Photo Published',
+
+  /** Git commit message when a publish file is deleted and gallery syncs */
+  gitRemoveCommitMessage: 'Photo removed from gallery',
 
   /** WebP quality 1–100 */
   webpQuality: 90,
@@ -92,6 +96,9 @@ const CATEGORY_DISPLAY = {
 };
 
 const processing = new Set();
+
+/** Absolute paths we moved to _processed — ignore matching `unlink` (not a user deletion). */
+const ignoredUnlinks = new Set();
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -306,7 +313,8 @@ function tryKeywordsForSlug(keywordsText) {
 }
 
 /**
- * Resolve category slug from IPTC + XMP + Keywords. Logs success or ERROR with raw value seen.
+ * Legacy: IPTC/XMP category resolution. Unused — publish **subfolder** name sets category (`categoryFromPublishRelative`).
+ * Kept for reference or future opt-in.
  */
 function normalizeCategory(iptc, xmp, keywordsText, filenameForLog) {
   const candidates = extractCategoryCandidates(iptc, xmp);
@@ -408,6 +416,140 @@ function slugUniqueIdFromOriginalName(originalRef) {
   return base;
 }
 
+/**
+ * Lightroom export name with Custom Order prefix: "001-P8150904.jpg" → sort_order 1,
+ * id stem "P8150904" (used for unique_id / dedupe). No prefix → nulls (fall back to EXIF stem).
+ */
+function parseExportFilenameSequence(exportStem) {
+  const stem = String(exportStem || '').trim();
+  const m = stem.match(/^(\d+)-(.+)$/);
+  if (!m) return { sort_order: null, idStemForUniqueId: null };
+  const n = parseInt(m[1], 10);
+  const rest = m[2].trim();
+  if (!Number.isFinite(n) || !rest) return { sort_order: null, idStemForUniqueId: null };
+  return { sort_order: n, idStemForUniqueId: rest };
+}
+
+/**
+ * Sort gallery JSON by sort_order ascending; entries without a number go last (stable by id).
+ */
+function sortGalleryDataImages(data) {
+  if (!data || !Array.isArray(data.images)) return;
+  data.images.sort((a, b) => {
+    const ao =
+      typeof a.sort_order === 'number' && Number.isFinite(a.sort_order) ? a.sort_order : Infinity;
+    const bo =
+      typeof b.sort_order === 'number' && Number.isFinite(b.sort_order) ? b.sort_order : Infinity;
+    if (ao !== bo) return ao - bo;
+    return (a.id || 0) - (b.id || 0);
+  });
+}
+
+/**
+ * First folder under the publish root must be a known category (Wildlife/foo.jpg).
+ * Returns null for files sitting directly in the publish root or under _processed/.
+ */
+function categoryFromPublishRelative(relPath, logLabel) {
+  const parts = String(relPath || '')
+    .split(/[/\\]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  if (parts[0] === CONFIG.processedSubdir) return null;
+  const folderRaw = parts[0];
+  const slug = mapFragmentToCategorySlug(folderRaw);
+  if (!slug) {
+    console.warn(
+      `[watcher] Unknown category subfolder "${folderRaw}" (${logLabel}) — use one of: ${ALLOWED_CATEGORIES.join(', ')}`
+    );
+    return null;
+  }
+  return {
+    slug,
+    display: CATEGORY_DISPLAY[slug],
+    folderName: folderRaw,
+  };
+}
+
+/** unique_id + sort_order from export filename only (used after unlink — no EXIF). */
+function uniqueIdFromExportBasename(baseFilename) {
+  const base = path.basename(baseFilename);
+  const exportStem = path.basename(base, path.extname(base));
+  const seq = parseExportFilenameSequence(exportStem);
+  if (seq.idStemForUniqueId) {
+    return {
+      unique_id: slugUniqueIdFromOriginalName(seq.idStemForUniqueId),
+      sort_order: seq.sort_order,
+      exportStem,
+    };
+  }
+  return {
+    unique_id: slugUniqueIdFromOriginalName(exportStem),
+    sort_order: seq.sort_order,
+    exportStem,
+  };
+}
+
+/**
+ * Remove gallery row (unique_id + category) and delete WebP on disk.
+ * @returns {boolean} true if JSON or a WebP file changed
+ */
+function removeGalleryEntryAndWebp(unique_id, categorySlug) {
+  const dataPath = path.join(CONFIG.projectRoot, 'gallery-data.json');
+  if (!fs.existsSync(dataPath)) return false;
+
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  } catch (e) {
+    console.warn('[watcher] Could not read gallery-data.json for removal:', e.message);
+    return false;
+  }
+  if (!Array.isArray(data.images)) return false;
+
+  const uidNorm = String(unique_id).toLowerCase();
+  const idx = data.images.findIndex(
+    (img) =>
+      String(img.unique_id || '').toLowerCase() === uidNorm && img.category === categorySlug
+  );
+
+  let changed = false;
+  const conventionalRel = `images-optimized/${categorySlug}/${unique_id}.webp`;
+  const conventionalAbs = path.join(CONFIG.projectRoot, conventionalRel);
+
+  if (idx >= 0) {
+    const entry = data.images[idx];
+    const storedRel = entry.filename;
+    const storedAbs = storedRel ? path.join(CONFIG.projectRoot, storedRel) : null;
+    data.images.splice(idx, 1);
+    sortGalleryDataImages(data);
+    saveGalleryData(dataPath, data);
+    changed = true;
+    if (storedAbs && fs.existsSync(storedAbs)) {
+      try {
+        fs.unlinkSync(storedAbs);
+      } catch (e) {
+        console.warn('[watcher] Could not delete WebP:', storedRel, e.message);
+      }
+    }
+  } else {
+    console.warn(
+      `[watcher] No gallery entry for unique_id="${unique_id}" category="${categorySlug}" (file was removed from publish folder).`
+    );
+  }
+
+  if (fs.existsSync(conventionalAbs)) {
+    try {
+      fs.unlinkSync(conventionalAbs);
+      changed = true;
+    } catch (e) {
+      console.warn('[watcher] Could not delete WebP:', conventionalRel, e.message);
+    }
+  }
+
+  return changed;
+}
+
 function saveGalleryData(dataPath, data) {
   fs.writeFileSync(dataPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
 }
@@ -441,6 +583,7 @@ function dedupeGalleryDataOnStartup() {
   }
 
   const before = data.images.length;
+  const orderBefore = data.images.map((i) => i.id).join(',');
   const sorted = [...data.images].sort((a, b) => (b.id || 0) - (a.id || 0));
   const seenUid = new Set();
   const seenPath = new Set();
@@ -461,14 +604,18 @@ function dedupeGalleryDataOnStartup() {
     kept.push(img);
   }
 
-  kept.sort((a, b) => (a.id || 0) - (b.id || 0));
+  sortGalleryDataImages({ images: kept });
+  data.images = kept;
+  const orderAfter = data.images.map((i) => i.id).join(',');
 
   if (kept.length !== before) {
-    data.images = kept;
     mutated = true;
     console.log(
       `[watcher] Cleanup: removed ${before - kept.length} duplicate gallery entries (same unique_id or filename).`
     );
+  }
+  if (orderBefore !== orderAfter) {
+    mutated = true;
   }
 
   if (mutated) {
@@ -514,6 +661,7 @@ function upsertGalleryEntry(newEntry) {
     }
     newEntry.id = old.id;
     data.images[idx] = newEntry;
+    sortGalleryDataImages(data);
     saveGalleryData(dataPath, data);
     console.log(`[watcher] Updated existing photo: ${newEntry.id}`);
     return { updated: true, entry: newEntry };
@@ -522,12 +670,13 @@ function upsertGalleryEntry(newEntry) {
   const maxId = data.images.reduce((m, i) => Math.max(m, typeof i.id === 'number' ? i.id : 0), 0);
   newEntry.id = maxId + 1;
   data.images.push(newEntry);
+  sortGalleryDataImages(data);
   saveGalleryData(dataPath, data);
   console.log(`[watcher] Added new photo: ${newEntry.id}`);
   return { updated: false, entry: newEntry };
 }
 
-function runGitSteps() {
+function runGitSteps(commitMessage) {
   if (!CONFIG.autoGitPush) return;
   const gitRoot = getGitRoot();
   if (!gitRoot) {
@@ -538,6 +687,7 @@ function runGitSteps() {
     );
     return;
   }
+  const msg = (commitMessage || CONFIG.gitCommitMessage).replace(/"/g, '\\"');
   console.log('[watcher] Git root:', gitRoot);
   try {
     execSync('git add -A', { cwd: gitRoot, stdio: 'inherit' });
@@ -546,7 +696,7 @@ function runGitSteps() {
     return;
   }
   try {
-    execSync(`git commit -m "${CONFIG.gitCommitMessage.replace(/"/g, '\\"')}"`, {
+    execSync(`git commit -m "${msg}"`, {
       cwd: gitRoot,
       stdio: 'inherit',
     });
@@ -631,10 +781,19 @@ async function processJpeg(filePath) {
   if (!lower.endsWith('.jpg') && !lower.endsWith('.jpeg')) return;
 
   const watchResolved = path.resolve(CONFIG.watchDir);
-  const rel = path.relative(watchResolved, path.resolve(filePath));
-  if (rel.startsWith(CONFIG.processedSubdir + path.sep) || rel === CONFIG.processedSubdir || rel.includes('..')) {
+  const abs = path.resolve(filePath);
+  const rel = path.relative(watchResolved, abs);
+  if (rel.startsWith('..') || rel.split(/[/\\]/).includes('..')) return;
+  if (rel.startsWith(CONFIG.processedSubdir + path.sep) || rel === CONFIG.processedSubdir) {
     return;
   }
+
+  const catInfo = categoryFromPublishRelative(rel, base);
+  if (!catInfo) {
+    console.warn(`[watcher] Ignoring JPEG outside a category subfolder: ${rel}`);
+    return;
+  }
+  const category = catInfo.slug;
 
   if (processing.has(filePath)) return;
   processing.add(filePath);
@@ -664,19 +823,24 @@ async function processJpeg(filePath) {
     const xmp = tags.xmp || {};
 
     const exportStem = path.basename(base, path.extname(base));
+    const seq = parseExportFilenameSequence(exportStem);
     const originalFromMeta = extractOriginalFilename(tags, exportStem);
-    const unique_id = slugUniqueIdFromOriginalName(originalFromMeta);
+    const unique_id = seq.idStemForUniqueId
+      ? slugUniqueIdFromOriginalName(seq.idStemForUniqueId)
+      : slugUniqueIdFromOriginalName(originalFromMeta);
+
+    const titleFromExportStem = seq.idStemForUniqueId
+      ? seq.idStemForUniqueId.replace(/-/g, ' ')
+      : exportStem.replace(/-/g, ' ');
 
     const title =
       pickDesc(iptc, 'Object Name') ||
       titleFromXmp(xmp) ||
-      exportStem.replace(/-/g, ' ');
+      titleFromExportStem;
 
     const field_notes = pickDesc(iptc, 'Caption/Abstract');
     const location = pickDesc(iptc, 'Sub-location');
     const print_info = pickDesc(iptc, 'Headline');
-    const keywords = pickDesc(iptc, 'Keywords');
-    const category = normalizeCategory(iptc, xmp, keywords, base);
 
     const technical_specs = buildTechnicalSpecs(exif);
     const gear = buildGear(exif);
@@ -714,17 +878,29 @@ async function processJpeg(filePath) {
       print_info,
       location,
       field_notes,
+      sort_order: seq.sort_order != null ? seq.sort_order : null,
     });
+
+    const orderHeart =
+      seq.sort_order != null ? String(seq.sort_order) : '—';
+    console.log(
+      `[watcher] New file in ${catInfo.display}: ${base} (# ${orderHeart})`
+    );
+    console.log(
+      `[watcher]   WebP: ${relFilename} · unique_id=${unique_id} · title="${title}"`
+    );
 
     // 3) _processed: create every time, then move (copy+unlink fallback)
     const processedDir = path.resolve(CONFIG.watchDir, CONFIG.processedSubdir);
     fs.mkdirSync(processedDir, { recursive: true });
     const destJpg = path.join(processedDir, `${unique_id}-${Date.now()}${path.extname(base)}`);
-    moveToProcessed(filePath, destJpg);
-
-    console.log(
-      `[watcher] WebP: ${relFilename} · unique_id=${unique_id} · title="${title}" · category=${category}`
-    );
+    ignoredUnlinks.add(abs);
+    try {
+      moveToProcessed(filePath, destJpg);
+    } catch (moveErr) {
+      ignoredUnlinks.delete(abs);
+      throw moveErr;
+    }
     console.log(`[watcher]   moved export to _processed/${path.basename(destJpg)}`);
 
     runGitSteps();
@@ -732,6 +908,37 @@ async function processJpeg(filePath) {
     console.error('[watcher] Error processing', filePath, err);
   } finally {
     processing.delete(filePath);
+  }
+}
+
+async function handleJpegRemoved(filePath) {
+  const base = path.basename(filePath);
+  const lower = base.toLowerCase();
+  if (!lower.endsWith('.jpg') && !lower.endsWith('.jpeg')) return;
+
+  const abs = path.resolve(filePath);
+  if (ignoredUnlinks.has(abs)) {
+    ignoredUnlinks.delete(abs);
+    return;
+  }
+
+  const watchResolved = path.resolve(CONFIG.watchDir);
+  const rel = path.relative(watchResolved, abs);
+  if (rel.startsWith('..') || rel.split(/[/\\]/).includes('..')) return;
+
+  const catInfo = categoryFromPublishRelative(rel, base);
+  if (!catInfo) return;
+
+  const { unique_id } = uniqueIdFromExportBasename(base);
+
+  console.log(`[watcher] File removed from ${catInfo.display}: ${base}. Syncing...`);
+
+  const changed = removeGalleryEntryAndWebp(unique_id, catInfo.slug);
+  if (changed) {
+    runGitSteps(CONFIG.gitRemoveCommitMessage);
+    console.log('[watcher]   Deletion synced (gallery-data.json + WebP).');
+  } else {
+    console.log('[watcher]   Nothing to remove (no matching gallery row or WebP).');
   }
 }
 
@@ -755,6 +962,10 @@ function main() {
 
   const gitRoot = getGitRoot();
   console.log('[watcher] Watching:', path.resolve(CONFIG.watchDir));
+  console.log(
+    '[watcher] Category subfolders:',
+    ALLOWED_CATEGORIES.map((s) => CATEGORY_DISPLAY[s]).join(', ')
+  );
   console.log('[watcher] Project root (gallery):', CONFIG.projectRoot);
   console.log('[watcher] Git root:', gitRoot || '(none — run inside a cloned repo for Netlify auto-deploy)');
   console.log('[watcher] Auto git push:', CONFIG.autoGitPush);
@@ -776,6 +987,10 @@ function main() {
 
   watcher.on('add', (p) => {
     processJpeg(p).catch((e) => console.error(e));
+  });
+
+  watcher.on('unlink', (p) => {
+    handleJpegRemoved(p).catch((e) => console.error(e));
   });
 
   watcher.on('error', (err) => console.error('[watcher] chokidar error:', err));
