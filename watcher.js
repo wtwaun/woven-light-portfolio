@@ -442,6 +442,11 @@ function parseExportFilenameSequence(exportStem) {
 function sortGalleryDataImages(data) {
   if (!data || !Array.isArray(data.images)) return;
   data.images.sort((a, b) => {
+    const catA = String(a.category || '').toLowerCase();
+    const catB = String(b.category || '').toLowerCase();
+    if (catA < catB) return -1;
+    if (catA > catB) return 1;
+
     const ao =
       typeof a.sort_order === 'number' && Number.isFinite(a.sort_order) ? a.sort_order : Infinity;
     const bo =

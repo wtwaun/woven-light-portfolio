@@ -133,6 +133,11 @@ function sortImagesByGalleryOrder(images) {
     return images
         .map((img, index) => ({ img, index }))
         .sort((a, b) => {
+            const catA = String(a.img.category || '').toLowerCase();
+            const catB = String(b.img.category || '').toLowerCase();
+            if (catA < catB) return -1;
+            if (catA > catB) return 1;
+
             const ao =
                 typeof a.img.sort_order === 'number' && Number.isFinite(a.img.sort_order)
                     ? a.img.sort_order
