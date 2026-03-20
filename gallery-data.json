@@ -951,14 +951,14 @@
     },
     {
       "unique_id": "Wildwaun-9",
-      "category": "landscape",
-      "filename": "images-optimized/landscape/Wildwaun-9.webp",
-      "title": "Garden Bridge",
-      "gear": "OM Digital Solutions OM-3, OLYMPUS M.75mm F1.8",
-      "technical_specs": "75mm, 200ISO, f/8.0, 1/100",
+      "category": "plants",
+      "filename": "images-optimized/plants/Wildwaun-9.webp",
+      "title": "Wildwaun 9",
+      "gear": "OM Digital Solutions OM-1, OLYMPUS M.17mm F1.8",
+      "technical_specs": "17mm, 125ISO, f/1.8, 1/1000",
       "print_info": "",
       "location": "",
-      "field_notes": "While in the Japanese Garden this bridge seemed to beckon for its photo to be taken.",
+      "field_notes": "",
       "sort_order": null,
       "id": 74
     }
