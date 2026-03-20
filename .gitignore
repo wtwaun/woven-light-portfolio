@@ -12,6 +12,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Dependencies (install with npm install)
+node_modules/
+
 # Images (uncomment if you want to ignore your actual photos in git)
 # images/
 
