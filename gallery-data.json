@@ -187,6 +187,17 @@
       "print_info": "Canon Pro Luster",
       "location": "The Parklands of Floyds Fork, KY",
       "field_notes": "This particular fellow stands guard over the bridge. Everyday hundreds of people pass by, none the wiser to his presence."
+    },
+    {
+      "id": 18,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-8.webp",
+      "title": "P8300636",
+      "gear": "OM Digital Solutions OM-3, OLYMPUS M.75mm F1.8",
+      "technical_specs": "75mm, 200ISO, f/5.0, 1/4000",
+      "print_info": "",
+      "location": "",
+      "field_notes": ""
     }
   ]
 }
