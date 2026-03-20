@@ -818,6 +818,19 @@
       "field_notes": "A stormy day at the most photographed lighthouse in the world. The winds were blowing strong, and the ocean was crashing, yet the lighthouse still shines.",
       "sort_order": null,
       "id": 63
+    },
+    {
+      "unique_id": "Wildwaun-4",
+      "category": "abstract",
+      "filename": "images-optimized/abstract/Wildwaun-4.webp",
+      "title": "Bolted Braces",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, M.40-150mm F2.8 + MC-14",
+      "technical_specs": "210mm, 200ISO, f/16.0, 1/400",
+      "print_info": "",
+      "location": "",
+      "field_notes": "",
+      "sort_order": null,
+      "id": 64
     }
   ]
 }
