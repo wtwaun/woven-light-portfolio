@@ -176,6 +176,17 @@
       "print_info": "Canon Premium Matte",
       "location": "Chilean Coast",
       "field_notes": "Looking out to the Pacific, this rock was so far away it could barely be discerned what was on it. Imagine my delight after getting home to see these two cuddled up on top."
+    },
+    {
+      "id": 17,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-8.webp",
+      "title": "Screech Owl",
+      "gear": "OM Digital Solutions OM-1MarkII, OM 150-400mm F4.5 TC + MC-14",
+      "technical_specs": "700mm, 3200ISO, f/8.0, 1/1000",
+      "print_info": "Canon Pro Luster",
+      "location": "The Parklands of Floyds Fork, KY",
+      "field_notes": "This particular fellow stands guard over the bridge. Everyday hundreds of people pass by, none the wiser to his presence."
     }
   ]
 }
