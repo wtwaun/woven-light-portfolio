@@ -5,7 +5,8 @@
     "optimize-images": "node optimize-images.js",
     "generate-gallery-data": "node generate-gallery-data.js",
     "watch-publish": "node watcher.js",
-    "serve": "npx --yes serve -l 3000"
+    "serve": "npx --yes serve -l 3000",
+    "hero:build": "node build-hero.js"
   },
   "devDependencies": {
     "sharp": "^0.33.5"

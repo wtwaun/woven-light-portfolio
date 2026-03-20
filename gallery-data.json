@@ -1,3 +1,27 @@
 {
-  "images": []
+  "images": [
+    {
+      "id": 1,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/P8150904-Enhanced-NR-Edit.webp",
+      "unique_id": "P8150904-Enhanced-NR-Edit",
+      "title": "Edge of Ascent",
+      "gear": "",
+      "technical_specs": "",
+      "print_info": "",
+      "location": "",
+      "field_notes": ""
+    },
+    {
+      "id": 2,
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/Wildlife-1.webp",
+      "title": "Bolted Braces",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, M.40-150mm F2.8 + MC-14",
+      "technical_specs": "210mm, 200ISO, f/16.0, 1/400",
+      "print_info": "",
+      "location": "",
+      "field_notes": ""
+    }
+  ]
 }

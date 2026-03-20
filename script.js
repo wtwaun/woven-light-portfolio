@@ -81,6 +81,17 @@ const GALLERY_IMAGES_FALLBACK = [
     { src: 'images-optimized/wildlife/Wildlife-10.webp', category: 'wildlife', alt: 'Wildlife Photography' },
 ];
 
+/**
+ * Locked homepage full-bleed hero (source file: P8150904-Enhanced-NR-Edit.tif → WebP below).
+ * img.src is always this path; metadata can still come from gallery-data.json when present.
+ */
+const HOME_HERO = Object.freeze({
+    src: 'images-optimized/wildlife/P8150904-Enhanced-NR-Edit.webp',
+    category: 'wildlife',
+    title: 'Edge of Ascent',
+    unique_id: 'P8150904-Enhanced-NR-Edit',
+});
+
 let galleryDataCache = null;
 // Holds the ordered list of images for the current category (View 2)
 let currentCategoryImages = [];
@@ -188,8 +199,26 @@ async function initGallery() {
 
     let imagesToShow;
     if (currentCategory === 'all') {
-        const homeImage = allImages.find(img => img.src && img.src.includes('Wildlife-1.webp')) || allImages.find(img => img.category === 'wildlife');
-        imagesToShow = homeImage ? [homeImage] : [];
+        const fromManifest = allImages.find(
+            (img) =>
+                (img.unique_id &&
+                    String(img.unique_id).toLowerCase() === HOME_HERO.unique_id.toLowerCase()) ||
+                (img.src && img.src.includes('P8150904-Enhanced-NR-Edit'))
+        );
+        const homeImage = {
+            src: HOME_HERO.src,
+            category: HOME_HERO.category,
+            alt: fromManifest?.title || HOME_HERO.title,
+            title: fromManifest?.title || HOME_HERO.title,
+            year: fromManifest?.year || '2024',
+            gear: fromManifest?.gear || '',
+            technical_specs: fromManifest?.technical_specs || '',
+            print_info: fromManifest?.print_info || '',
+            location: fromManifest?.location || '',
+            field_notes: fromManifest?.field_notes || '',
+            unique_id: HOME_HERO.unique_id,
+        };
+        imagesToShow = [homeImage];
     } else {
         imagesToShow = allImages.filter(img => img.category === currentCategory);
     }
