@@ -287,6 +287,18 @@
       "location": "",
       "field_notes": "",
       "id": 24
+    },
+    {
+      "unique_id": "P2072179-Enhanced-NR-2",
+      "category": "wildlife",
+      "filename": "images-optimized/wildlife/P2072179-Enhanced-NR-2.webp",
+      "title": "Line of Flight",
+      "gear": "OM Digital Solutions OM-1, OM 100-400mm F5.0-6.3",
+      "technical_specs": "400mm, 320ISO, f/6.3, 1/1600",
+      "print_info": "Canon Premium Matte",
+      "location": "Atacama Desert, Chile",
+      "field_notes": "As flamingos flew all around us, this one happened to line up perfectly with the layers in the mountains behind.",
+      "id": 25
     }
   ]
 }
