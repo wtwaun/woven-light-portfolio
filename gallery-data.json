@@ -105,6 +105,19 @@
       "id": 9
     },
     {
+      "unique_id": "Blood_Moon",
+      "category": "cityscape",
+      "filename": "images-optimized/cityscape/Blood_Moon.webp",
+      "title": "Blood Moon",
+      "gear": "OLYMPUS CORPORATION E-M1MarkIII, M.40-150mm F2.8 + MC-14",
+      "technical_specs": "87mm, 200ISO, f/11.0, 5",
+      "print_info": "",
+      "location": "",
+      "field_notes": "",
+      "sort_order": 5,
+      "id": 10
+    },
+    {
       "id": 1,
       "unique_id": "P8150904-Enhanced-NR-Edit",
       "category": "wildlife",
