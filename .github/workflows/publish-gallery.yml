@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'WILDWAUN_PUBLISH/**'
+      - '!images-optimized/**'
+      - '!gallery-data.json'
 
 permissions:
   contents: write
@@ -41,6 +43,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Auto-process new images to WebP and update gallery-data.json"
+            git commit -m "Auto-processing: [skip ci]"
             git push
           fi
