@@ -1,0 +1,46 @@
+name: Process Publish Folder
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'WILDWAUN_PUBLISH/**'
+
+permissions:
+  contents: write
+
+jobs:
+  process-images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for committing back
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Run Image Processing
+        run: node process-publish-folder.js
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add images-optimized/ gallery-data.json
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Auto-process new images to WebP and update gallery-data.json"
+            git push
+          fi
